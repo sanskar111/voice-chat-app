@@ -87,36 +87,61 @@ Socket.io requires "sticky sessions" (session affinity) because a client must ma
 ### WebRTC Scaling
 - **Mesh Topology**: Works fine for small rooms (3-5 users).
 - **SFU (Selective Forwarding Unit)**: For larger rooms (10+ users), Mesh is inefficient. You would need to deploy an SFU like **Mediasoup** or **Jitsi Videobridge**.
-## Zero-Cost Deployment Guide
+## Deployment
 
-### 1. Backend (Google Cloud Run)
-- **Prerequisites**: Google Cloud Project, Billing enabled (Free tier covers 2M requests/month).
-- **Database**: Use **Neon** or **Supabase** for a free PostgreSQL database. Get the connection string.
-- **Deploy**:
-  ```bash
-  gcloud run deploy voice-chat-backend --source ./backend --platform managed --allow-unauthenticated --set-env-vars DATABASE_URL=[NEON_DB_URL],JWT_SECRET=[SECRET]
-  ```
-- **Note URL**: Copy the URL provided by Cloud Run (e.g., `https://voice-chat-backend-xyz.a.run.app`).
+For complete deployment instructions, see:
+- **[DEPLOYMENT.md](./docs/DEPLOYMENT.md)** - Complete deployment guide (manual + CI/CD)
+- **[SUPABASE_SETUP.md](./docs/SUPABASE_SETUP.md)** - Supabase database setup
 
-### 2. Frontend (Firebase Hosting)
-- **Prerequisites**: Firebase Project (can be same as GCP project).
-- **Setup**:
-  1. Install CLI: `npm install -g firebase-tools`
-  2. Login: `firebase login`
-  3. Init: `firebase init hosting` (Select `frontend/dist` as public directory, Yes to SPA).
-- **Build & Deploy**:
-  ```bash
-  cd frontend
-  # Set the backend URL
-  export VITE_API_URL=https://voice-chat-backend-xyz.a.run.app
-  npm run build
-  firebase deploy
-  ```
+### Quick Start (Manual Deployment)
 
-### 3. CI/CD (GitHub Actions)
-To automate this, add the following secrets to your GitHub Repo:
-- `GCP_PROJECT_ID`, `GCP_SA_KEY` (for Backend)
-- `FIREBASE_SERVICE_ACCOUNT`, `FIREBASE_PROJECT_ID` (for Frontend)
-- `BACKEND_URL` (The Cloud Run URL, used by frontend build)
-- `DATABASE_URL`, `JWT_SECRET`
+1. **Set up Supabase Database**
+   - Create project at https://supabase.com
+   - Select region close to India (Singapore/Mumbai)
+   - Copy database connection string
+
+2. **Deploy Backend to Cloud Run**
+   ```bash
+   gcloud run deploy voice-chat-backend \
+     --source ./backend \
+     --platform managed \
+     --region asia-south1 \
+     --allow-unauthenticated \
+     --set-env-vars DATABASE_URL=[SUPABASE_URL],JWT_SECRET=[SECRET]
+   ```
+
+3. **Deploy Frontend to Firebase**
+   ```bash
+   cd frontend
+   VITE_API_URL=https://voice-chat-backend-xxx.a.run.app npm run build
+   firebase deploy --only hosting
+   ```
+
+### Automated CI/CD
+
+The repo includes GitHub Actions workflow (`.github/workflows/deploy.yml`) that automatically deploys on push to `main`.
+
+**Required GitHub Secrets**:
+- `GCP_PROJECT_ID`, `GCP_SA_KEY`
+- `FIREBASE_SERVICE_ACCOUNT`, `FIREBASE_PROJECT_ID`
+- `DATABASE_URL`, `JWT_SECRET`, `BACKEND_URL`
+
+### Monitoring Supabase Usage
+
+**Free Tier Limits**:
+- Database: 500 MB
+- Bandwidth: 2 GB/month
+- Connections: 60 concurrent
+
+**Monitor Usage**:
+1. Go to https://supabase.com/dashboard
+2. Select your project
+3. Navigate to **Settings → Usage**
+4. Watch database size and bandwidth
+
+**Stay Within Limits**:
+- Regularly clean up inactive rooms
+- Optimize queries with Prisma
+- Use connection pooling
+- Archive old user data
 
