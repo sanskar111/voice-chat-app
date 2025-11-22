@@ -7,34 +7,34 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  username  String
-  createdAt DateTime @default(now())
-  rooms     Room[]
-  joinedRooms RoomParticipant[]
-}
-
 model Room {
-  id          String   @id @default(uuid())
-  name        String
-  topic       String?
-  language    String?
-  hostId      String
-  host        User     @relation(fields: [hostId], references: [id])
-  createdAt   DateTime @default(now())
-  participants RoomParticipant[]
+  id              String            @id
+  name            String
+  topic           String?
+  language        String?
+  hostId          String
+  createdAt       DateTime          @default(now())
+  User            User              @relation(fields: [hostId], references: [id])
+  RoomParticipant RoomParticipant[]
 }
 
 model RoomParticipant {
-  id        String   @id @default(uuid())
-  userId    String
-  roomId    String
-  joinedAt  DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
-  room      Room     @relation(fields: [roomId], references: [id])
+  id       String   @id
+  userId   String
+  roomId   String
+  joinedAt DateTime @default(now())
+  Room     Room     @relation(fields: [roomId], references: [id])
+  User     User     @relation(fields: [userId], references: [id])
 
   @@unique([userId, roomId])
+}
+
+model User {
+  id              String            @id
+  email           String            @unique
+  password        String
+  username        String
+  createdAt       DateTime          @default(now())
+  Room            Room[]
+  RoomParticipant RoomParticipant[]
 }
