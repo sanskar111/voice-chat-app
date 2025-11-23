@@ -30,7 +30,7 @@ const AuthCallbackPage = () => {
                         email: payload.email,
                         username: payload.username
                     };
-                    login(user, token);
+                    login(token, user);
                     navigate('/');
                 } catch (err) {
                     console.error('Error decoding token:', err);
