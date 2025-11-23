@@ -1,5 +1,6 @@
 {
     "hosting": {
+        "site": "voice-chat-app-prod",
         "public": "frontend/dist",
         "ignore": [
             "firebase.json",

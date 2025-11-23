@@ -44,7 +44,6 @@ const RoomPage: React.FC = () => {
 
     const [messages, setMessages] = useState<any[]>([]);
     const [isMuted, setIsMuted] = useState(false);
-    const [hostId, setHostId] = useState<string | null>(null); // Ideally fetch from API
 
     // WebRTC Hook
     const { remoteStreams, toggleMute } = useWebRTC(socket, roomId, user?.id);
