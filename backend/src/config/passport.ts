@@ -62,6 +62,32 @@ export const configurePassport = () => {
             }
         )
     );
+
+    // JWT Strategy
+    const { Strategy: JwtStrategy, ExtractJwt } = require('passport-jwt');
+    passport.use(
+        new JwtStrategy(
+            {
+                jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+                secretOrKey: process.env.JWT_SECRET!,
+            },
+            async (payload: any, done: any) => {
+                try {
+                    const user = await prisma.user.findUnique({
+                        where: { id: payload.userId },
+                    });
+
+                    if (user) {
+                        return done(null, user);
+                    } else {
+                        return done(null, false);
+                    }
+                } catch (error) {
+                    return done(error, false);
+                }
+            }
+        )
+    );
 };
 
 export const generateTokenForUser = (user: any) => {

@@ -14,6 +14,7 @@ export const signup = async (req: Request, res: Response) => {
         });
         res.status(201).json({ message: 'User created', userId: user.id });
     } catch (error) {
+        console.error('Signup error:', error);
         res.status(500).json({ error: 'Error creating user' });
     }
 };
@@ -30,6 +31,7 @@ export const login = async (req: Request, res: Response) => {
         const token = jwt.sign({ userId: user.id }, SECRET, { expiresIn: '1h' });
         res.json({ token, userId: user.id, username: user.username });
     } catch (error) {
+        console.error('Login error:', error);
         res.status(500).json({ error: 'Error logging in' });
     }
 };

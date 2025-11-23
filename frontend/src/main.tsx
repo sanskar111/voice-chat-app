@@ -5,15 +5,18 @@ import App from './App.tsx'
 import './index.css'
 import { AuthProvider } from './contexts/AuthContext.tsx'
 import { SocketProvider } from './contexts/SocketContext.tsx'
+import ErrorBoundary from './components/ErrorBoundary.tsx'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
-        <BrowserRouter>
-            <AuthProvider>
-                <SocketProvider>
-                    <App />
-                </SocketProvider>
-            </AuthProvider>
-        </BrowserRouter>
+        <ErrorBoundary>
+            <BrowserRouter>
+                <AuthProvider>
+                    <SocketProvider>
+                        <App />
+                    </SocketProvider>
+                </AuthProvider>
+            </BrowserRouter>
+        </ErrorBoundary>
     </React.StrictMode>,
 )

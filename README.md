@@ -1,17 +1,20 @@
-# Voice Chat Application
+# TalkSick - Real-Time Voice Chat Application
 
 A real-time voice and text chat application built with Node.js, React, and WebRTC.
+
+**Live App**: https://talksick.web.app
 
 ## Features
 - **Voice Chat**: Real-time audio communication using WebRTC (Mesh topology).
 - **Text Chat**: Instant messaging within rooms.
 - **Rooms**: Create and join rooms based on topics or languages.
+- **Google OAuth**: Secure authentication with Google accounts.
 - **Lobby**: View active rooms and online user counts.
 
 ## Tech Stack
-- **Frontend**: React, Vite, TailwindCSS, Socket.io-client.
-- **Backend**: Node.js, Express, Socket.io, PostgreSQL.
-- **Infrastructure**: Google Cloud Run, Cloud SQL.
+- **Frontend**: React, Vite, TypeScript, TailwindCSS, Socket.io-client.
+- **Backend**: Node.js, Express, Socket.io, Prisma, PostgreSQL.
+- **Infrastructure**: Google Cloud Run, Firebase Hosting, Supabase.
 
 ## Prerequisites
 - Node.js (v18+)
@@ -64,12 +67,16 @@ gcloud auth login
 gcloud config set project [PROJECT_ID]
 
 # Deploy Backend
-gcloud builds submit --tag gcr.io/[PROJECT_ID]/voice-chat-backend ./backend
-gcloud run deploy voice-chat-backend --image gcr.io/[PROJECT_ID]/voice-chat-backend --platform managed --allow-unauthenticated --set-env-vars DATABASE_URL=[DB_URL],JWT_SECRET=[SECRET]
+gcloud run deploy talksick-backend \
+  --source ./backend \
+  --platform managed \
+  --region asia-south1 \
+  --allow-unauthenticated \
+  --set-env-vars DATABASE_URL=[SUPABASE_URL],JWT_SECRET=[SECRET]
 
 # Deploy Frontend
-gcloud builds submit --tag gcr.io/[PROJECT_ID]/voice-chat-frontend ./frontend
-gcloud run deploy voice-chat-frontend --image gcr.io/[PROJECT_ID]/voice-chat-frontend --platform managed --allow-unauthenticated
+cd frontend && npm run build
+firebase deploy --only hosting
 ```
 
 ## Scaling Considerations
@@ -78,7 +85,7 @@ gcloud run deploy voice-chat-frontend --image gcr.io/[PROJECT_ID]/voice-chat-fro
 Socket.io requires "sticky sessions" (session affinity) because a client must maintain a persistent connection to the *same* server instance.
 - **Cloud Run**: Supports session affinity. Enable it via:
   ```bash
-  gcloud run services update voice-chat-backend --session-affinity
+  gcloud run services update talksick-backend --session-affinity
   ```
 - **Redis Adapter**: For multiple instances to communicate (broadcast messages across servers), you **MUST** use the Socket.io Redis Adapter.
     1.  Set up a Redis instance (Google Cloud Memorystore).
@@ -102,18 +109,21 @@ For complete deployment instructions, see:
 
 2. **Deploy Backend to Cloud Run**
    ```bash
-   gcloud run deploy voice-chat-backend \
+   gcloud run deploy talksick-backend \
      --source ./backend \
      --platform managed \
      --region asia-south1 \
      --allow-unauthenticated \
      --set-env-vars DATABASE_URL=[SUPABASE_URL],JWT_SECRET=[SECRET]
    ```
+   Note the deployed URL (e.g., `https://talksick-backend-xxx.asia-south1.run.app`)
 
 3. **Deploy Frontend to Firebase**
    ```bash
-   cd frontend
-   VITE_API_URL=https://voice-chat-backend-xxx.a.run.app npm run build
+   # Update .env with backend URL
+   echo "VITE_API_URL=https://talksick-backend-xxx.asia-south1.run.app" > frontend/.env
+   
+   cd frontend && npm run build
    firebase deploy --only hosting
    ```
 

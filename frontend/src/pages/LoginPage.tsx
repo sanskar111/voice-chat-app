@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import GoogleSignInButton from '../components/GoogleSignInButton';
-import axios from 'axios';
+import axios from '../config/axios';
 
 const LoginPage: React.FC = () => {
     const [email, setEmail] = useState('');
@@ -14,7 +14,7 @@ const LoginPage: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const res = await axios.post('/api/auth/login', { email, password });
+            const res = await axios.post('/auth/login', { email, password });
             login(res.data.token, { id: res.data.userId, username: res.data.username });
             navigate('/');
         } catch (err) {

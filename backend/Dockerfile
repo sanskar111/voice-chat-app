@@ -4,6 +4,7 @@ WORKDIR /app
 
 COPY package*.json ./
 # Install all dependencies including devDependencies for build
+RUN apk -U add openssl
 RUN npm install
 
 COPY . .

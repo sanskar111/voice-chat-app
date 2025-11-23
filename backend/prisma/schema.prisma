@@ -15,28 +15,75 @@ model User {
   googleId  String?  @unique // Google OAuth ID
   avatar    String?  // Profile picture URL
   createdAt DateTime @default(now())
-  rooms     Room[]
+  
+  roomsOwned Room[]  @relation("UserRoomsOwned")
   joinedRooms RoomParticipant[]
+  bans      RoomBan[]
+  moderationLogsActor ModerationLog[] @relation("Actor")
+  moderationLogsTarget ModerationLog[] @relation("Target")
 }
 
 model Room {
-  id          String   @id @default(uuid())
-  name        String
-  topic       String?
-  language    String?
-  hostId      String
-  host        User     @relation(fields: [hostId], references: [id])
-  createdAt   DateTime @default(now())
+  id               String   @id @default(uuid())
+  title            String   // Renamed from name to match requirements if needed, or keep name. Let's use title as per spec.
+  topic            String?
+  language         String?
+  ownerId          String
+  owner            User     @relation("UserRoomsOwned", fields: [ownerId], references: [id])
+  visibility       String   @default("PUBLIC") // 'PUBLIC' | 'LOCKED' | 'PRIVATE'
+  maxParticipants  Int      @default(20)
+  status           String   @default("SCHEDULED") // 'SCHEDULED' | 'LIVE' | 'ENDED'
+  scheduledAt      DateTime?
+  participantCount Int      @default(0)
+  lastEmptyAt      DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
   participants RoomParticipant[]
+  bans         RoomBan[]
+  moderationLogs ModerationLog[]
 }
 
 model RoomParticipant {
-  id        String   @id @default(uuid())
-  userId    String
-  roomId    String
-  joinedAt  DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
-  room      Room     @relation(fields: [roomId], references: [id])
+  id          String   @id @default(uuid())
+  roomId      String
+  userId      String
+  role        String   @default("MEMBER") // 'OWNER' | 'CO_OWNER' | 'MEMBER'
+  status      String   @default("LISTENER") // 'SPEAKER' | 'LISTENER'
+  wantsToSpeak Boolean @default(false)
+  lastSeenAt  DateTime @default(now())
+  joinedAt    DateTime @default(now())
+
+  room        Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, roomId])
+}
+
+model RoomBan {
+  id        String   @id @default(uuid())
+  roomId    String
+  userId    String
+  reason    String?
+  createdAt DateTime @default(now())
+  createdBy String   // moderator id
+
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roomId])
+}
+
+model ModerationLog {
+  id        String   @id @default(uuid())
+  roomId    String
+  actorId   String
+  targetId  String?
+  action    String   // 'KICK' | 'BAN' | 'UNBAN' | 'PROMOTE_CO_OWNER' | 'DEMOTE_CO_OWNER' | 'TRANSFER_OWNERSHIP'
+  reason    String?
+  createdAt DateTime @default(now())
+
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  actor     User     @relation("Actor", fields: [actorId], references: [id])
+  target    User?    @relation("Target", fields: [targetId], references: [id])
 }

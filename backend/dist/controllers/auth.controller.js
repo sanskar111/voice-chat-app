@@ -27,6 +27,7 @@ const signup = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         res.status(201).json({ message: 'User created', userId: user.id });
     }
     catch (error) {
+        console.error('Signup error:', error);
         res.status(500).json({ error: 'Error creating user' });
     }
 });
@@ -35,13 +36,15 @@ const login = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { email, password } = req.body;
         const user = yield db_1.default.user.findUnique({ where: { email } });
-        if (!user || !(yield bcryptjs_1.default.compare(password, user.password))) {
+        // Check if user exists and has a password (if no password, they might be a Google auth user)
+        if (!user || !user.password || !(yield bcryptjs_1.default.compare(password, user.password))) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
         const token = jsonwebtoken_1.default.sign({ userId: user.id }, SECRET, { expiresIn: '1h' });
         res.json({ token, userId: user.id, username: user.username });
     }
     catch (error) {
+        console.error('Login error:', error);
         res.status(500).json({ error: 'Error logging in' });
     }
 });

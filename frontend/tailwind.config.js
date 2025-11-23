@@ -7,10 +7,17 @@ export default {
     theme: {
         extend: {
             colors: {
-                primary: '#4F46E5',
-                secondary: '#10B981',
-                dark: '#111827',
-                light: '#F3F4F6'
+                primary: '#00FF62', // Neon Green
+                secondary: '#111111', // Dark
+                accent: '#0B0B0F', // Darker Accent
+                background: '#F4F7FA', // Light BG
+                surface: '#FFFFFF', // White Surface
+                'text-primary': '#111111',
+                'text-secondary': '#6B7280',
+            },
+            fontFamily: {
+                sans: ['Inter', 'system-ui', 'sans-serif'],
+                heading: ['Poppins', 'Montserrat', 'sans-serif'],
             }
         },
     },

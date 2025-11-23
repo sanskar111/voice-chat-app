@@ -2,8 +2,9 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const room_controller_1 = require("../controllers/room.controller");
+const auth_middleware_1 = require("../middleware/auth.middleware");
 const router = (0, express_1.Router)();
 router.get('/', room_controller_1.getRooms);
-router.post('/', room_controller_1.createRoom);
+router.post('/', auth_middleware_1.authenticateJWT, room_controller_1.createRoom);
 router.get('/:id', room_controller_1.getRoom);
 exports.default = router;

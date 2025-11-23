@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
+import axios from '../config/axios';
 
 const SignupPage: React.FC = () => {
     const [username, setUsername] = useState('');
@@ -12,7 +12,7 @@ const SignupPage: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await axios.post('/api/auth/signup', { username, email, password });
+            await axios.post('/auth/signup', { username, email, password });
             navigate('/login');
         } catch (err) {
             setError('Error creating account');

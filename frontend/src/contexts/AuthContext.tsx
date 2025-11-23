@@ -4,6 +4,8 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 interface User {
     id: string;
     username: string;
+    email?: string;
+    avatar?: string;
 }
 
 interface AuthContextType {
@@ -12,6 +14,7 @@ interface AuthContextType {
     login: (token: string, user: User) => void;
     logout: () => void;
     isAuthenticated: boolean;
+    loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -19,17 +22,19 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
     const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (token) {
-            // Ideally verify token with backend here
-            // For now, we assume if token exists, we might have a user (persisted user state would be better)
-
-            const storedUser = localStorage.getItem('user');
-            if (storedUser) {
-                setUser(JSON.parse(storedUser));
+        const initAuth = async () => {
+            if (token) {
+                const storedUser = localStorage.getItem('user');
+                if (storedUser) {
+                    setUser(JSON.parse(storedUser));
+                }
             }
-        }
+            setLoading(false);
+        };
+        initAuth();
     }, [token]);
 
     const login = (newToken: string, newUser: User) => {
@@ -47,7 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     return (
-        <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated: !!token }}>
+        <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated: !!token, loading }}>
             {children}
         </AuthContext.Provider>
     );

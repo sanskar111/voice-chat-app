@@ -1,6 +1,6 @@
 {
     "hosting": {
-        "site": "voice-chat-app-prod",
+        "site": "talksick",
         "public": "frontend/dist",
         "ignore": [
             "firebase.json",

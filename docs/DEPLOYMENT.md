@@ -61,6 +61,10 @@ gcloud run deploy voice-chat-backend \
   --allow-unauthenticated \
   --set-env-vars DATABASE_URL="postgresql://postgres:YOUR_PASSWORD@db.xxxxx.supabase.co:5432/postgres" \
   --set-env-vars JWT_SECRET="your_jwt_secret_here" \
+  --set-env-vars FRONTEND_URL="https://your-firebase-app.web.app" \
+  --set-env-vars GOOGLE_CLIENT_ID="your_google_client_id" \
+  --set-env-vars GOOGLE_CLIENT_SECRET="your_google_client_secret" \
+  --set-env-vars GOOGLE_CALLBACK_URL="https://voice-chat-backend-xxxxx-as.a.run.app/auth/google/callback" \
   --max-instances 10 \
   --memory 512Mi \
   --timeout 300
@@ -159,6 +163,10 @@ Add the following secrets:
 | `FIREBASE_SERVICE_ACCOUNT` | `{...full JSON...}` | Firebase service account key |
 | `FIREBASE_PROJECT_ID` | `your-firebase-project` | From Firebase console |
 | `BACKEND_URL` | `https://voice-chat-backend-xxx.a.run.app` | From first backend deployment |
+| `FRONTEND_URL` | `https://your-firebase-app.web.app` | Firebase Hosting URL |
+| `GOOGLE_CLIENT_ID` | `...` | Google Cloud Console |
+| `GOOGLE_CLIENT_SECRET` | `...` | Google Cloud Console |
+| `GOOGLE_CALLBACK_URL` | `.../auth/google/callback` | Backend URL + path |
 
 ### Step 4: Update GitHub Actions Workflow
 
@@ -187,6 +195,10 @@ git push origin main
 DATABASE_URL="postgresql://postgres:password@db.xxxxx.supabase.co:5432/postgres"
 JWT_SECRET="your_secret_key"
 PORT=3000
+FRONTEND_URL="http://localhost:5173"
+GOOGLE_CLIENT_ID="your_client_id"
+GOOGLE_CLIENT_SECRET="your_client_secret"
+GOOGLE_CALLBACK_URL="http://localhost:3000/auth/google/callback"
 ```
 
 ### Frontend (.env)

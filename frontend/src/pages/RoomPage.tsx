@@ -1,40 +1,21 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSocket } from '../contexts/SocketContext';
 import { useAuth } from '../contexts/AuthContext';
 import ChatBox from '../components/ChatBox';
-import AudioControls from '../components/AudioControls';
 import { useWebRTC } from '../hooks/useWebRTC';
-import { useAudioAnalysis } from '../hooks/useAudioAnalysis';
-import { XCircle } from 'lucide-react';
+import axios from '../config/axios';
+import { Mic, MicOff, Hand, MessageSquare, ShieldAlert } from 'lucide-react';
 
-const Avatar: React.FC<{ name: string, isSpeaking: boolean, onKick?: () => void, canKick: boolean }> = ({ name, isSpeaking, onKick, canKick }) => (
-    <div className="relative group">
-        <div className={`w-20 h-20 rounded-full flex items-center justify-center text-xl font-bold border-4 shadow-lg transition-all duration-200 ${isSpeaking ? 'border-green-500 scale-105' : 'border-gray-700'}`} style={{ backgroundColor: stringToColor(name) }}>
-            {name.substring(0, 2).toUpperCase()}
-        </div>
-        <div className="text-center mt-2 text-sm font-medium truncate w-20">{name}</div>
-        {canKick && onKick && (
-            <button
-                onClick={onKick}
-                className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                title="Kick User"
-            >
-                <XCircle size={16} />
-            </button>
-        )}
-    </div>
-);
-
-// Helper to generate consistent colors
-const stringToColor = (str: string) => {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        hash = str.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
-    return '#' + '00000'.substring(0, 6 - c.length) + c;
-};
+interface Participant {
+    userId: string;
+    username: string;
+    avatar?: string;
+    role: 'OWNER' | 'CO_OWNER' | 'MEMBER';
+    status: 'SPEAKER' | 'LISTENER';
+    wantsToSpeak: boolean;
+    socketId?: string; // Optional, might not know for all
+}
 
 const RoomPage: React.FC = () => {
     const { id: roomId } = useParams();
@@ -42,29 +23,57 @@ const RoomPage: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
 
+    const [room, setRoom] = useState<any>(null);
+    const [participants, setParticipants] = useState<Participant[]>([]);
     const [messages, setMessages] = useState<any[]>([]);
     const [isMuted, setIsMuted] = useState(false);
+    const [showChat, setShowChat] = useState(false); // Mobile toggle
 
     // WebRTC Hook
     const { remoteStreams, toggleMute } = useWebRTC(socket, roomId, user?.id);
 
-    // Local Audio Analysis (Mocking stream for local user for now, or use actual localStream from hook if exposed)
-    // For simplicity in this MVP, we won't visualize local user speaking without exposing localStream from useWebRTC
+    useEffect(() => {
+        if (!roomId) return;
+        fetchRoomDetails();
+    }, [roomId]);
+
+    const fetchRoomDetails = async () => {
+        try {
+            const res = await axios.get(`/rooms/${roomId}`);
+            setRoom(res.data);
+            // Transform API participants to local state
+            const parts = res.data.participants.map((p: any) => ({
+                userId: p.user.id,
+                username: p.user.username,
+                avatar: p.user.avatar,
+                role: p.role,
+                status: p.status,
+                wantsToSpeak: p.wantsToSpeak
+            }));
+            setParticipants(parts);
+        } catch (err) {
+            console.error(err);
+            // navigate('/'); // Redirect if not found?
+        }
+    };
 
     useEffect(() => {
         if (!socket || !user || !roomId) return;
 
-        // Chat Listeners
-        socket.on('chat:message', (message) => {
-            setMessages(prev => [...prev, message]);
-        });
+        // --- Socket Listeners ---
 
-        socket.on('room:user-joined', ({ userId }) => {
-            setMessages(prev => [...prev, { sender: 'System', content: `User ${userId} joined` }]);
+        socket.on('room:user-joined', () => {
+            // We might need to fetch user details if we don't have them.
+            // For now, add a placeholder or fetch.
+            // Let's assume we re-fetch room details to be safe or just add if we can.
+            // Ideally backend sends full user object.
+            fetchRoomDetails();
+            setMessages(prev => [...prev, { sender: 'System', content: `User joined` }]);
         });
 
         socket.on('room:user-left', ({ userId }) => {
-            setMessages(prev => [...prev, { sender: 'System', content: `User ${userId} left` }]);
+            setParticipants(prev => prev.filter(p => p.userId !== userId));
+            setMessages(prev => [...prev, { sender: 'System', content: `User left` }]);
         });
 
         socket.on('room:user-kicked', ({ userId }) => {
@@ -72,16 +81,31 @@ const RoomPage: React.FC = () => {
                 alert('You have been kicked from the room.');
                 navigate('/');
             } else {
-                setMessages(prev => [...prev, { sender: 'System', content: `User ${userId} was kicked` }]);
+                setParticipants(prev => prev.filter(p => p.userId !== userId));
+                setMessages(prev => [...prev, { sender: 'System', content: `User was kicked` }]);
             }
+        });
+
+        socket.on('room:role-updated', ({ userId, status }) => {
+            setParticipants(prev => prev.map(p => p.userId === userId ? { ...p, status } : p));
+        });
+
+        socket.on('room:hand-raised', ({ userId }) => {
+            setParticipants(prev => prev.map(p => p.userId === userId ? { ...p, wantsToSpeak: true } : p));
+        });
+
+        socket.on('chat:message', (message) => {
+            setMessages(prev => [...prev, message]);
         });
 
         return () => {
             socket.emit('room:leave', roomId, user.id);
-            socket.off('chat:message');
             socket.off('room:user-joined');
             socket.off('room:user-left');
             socket.off('room:user-kicked');
+            socket.off('room:role-updated');
+            socket.off('room:hand-raised');
+            socket.off('chat:message');
         };
     }, [socket, roomId, user]);
 
@@ -101,54 +125,175 @@ const RoomPage: React.FC = () => {
         navigate('/');
     };
 
+    // Moderation Actions
     const handleKick = (targetUserId: string) => {
         if (socket && roomId && user) {
             socket.emit('room:kick', roomId, targetUserId, user.id);
         }
     };
 
+    const handlePromoteSpeaker = (targetUserId: string) => {
+        if (socket && roomId && user) {
+            socket.emit('room:grant-speaker', roomId, targetUserId, user.id);
+        }
+    };
+
+    const handleMoveToAudience = (targetUserId: string) => {
+        if (socket && roomId && user) {
+            socket.emit('room:revoke-speaker', roomId, targetUserId, user.id);
+        }
+    };
+
+    const handleRaiseHand = () => {
+        if (socket && roomId && user) {
+            socket.emit('room:raise-hand', roomId, user.id);
+        }
+    };
+
+    // Derived State
+    const speakers = participants.filter(p => p.status === 'SPEAKER');
+    const listeners = participants.filter(p => p.status === 'LISTENER');
+    const me = participants.find(p => p.userId === user?.id);
+    const amIOwner = me?.role === 'OWNER' || me?.role === 'CO_OWNER';
+
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-100px)]">
-            <div className="lg:col-span-3 flex flex-col gap-4">
-                <div className="flex-1 bg-gray-800 rounded-lg border border-gray-700 p-6 relative overflow-hidden flex flex-col">
-                    <div className="text-center mb-8">
-                        <h2 className="text-2xl font-bold mb-2">Room: {roomId}</h2>
-                        <p className="text-gray-400">Voice Connected (Mesh P2P)</p>
+        <div className="flex h-[calc(100vh-100px)] gap-6">
+            {/* Main Room Area */}
+            <div className="flex-1 flex flex-col min-w-0">
+                {/* Header */}
+                <div className="flex justify-between items-center mb-6">
+                    <div>
+                        <h1 className="text-2xl font-heading font-bold">{room?.title || 'Loading...'}</h1>
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                            {room?.topic && <span className="bg-gray-100 px-2 py-0.5 rounded-full">{room.topic}</span>}
+                            <span>{participants.length} online</span>
+                        </div>
                     </div>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setShowChat(!showChat)}
+                            className="lg:hidden p-2 rounded-full bg-gray-100"
+                        >
+                            <MessageSquare size={20} />
+                        </button>
+                        <button
+                            onClick={leaveRoom}
+                            className="bg-red-50 text-red-500 px-4 py-2 rounded-full font-bold text-sm hover:bg-red-100 transition"
+                        >
+                            Leave Quietly ✌️
+                        </button>
+                    </div>
+                </div>
 
-                    <div className="flex gap-8 justify-center flex-wrap content-start overflow-y-auto p-4">
-                        {/* Me */}
-                        <Avatar name={user?.username || 'Me'} isSpeaking={false} canKick={false} />
+                {/* Stage (Speakers) */}
+                <div className="flex-1 bg-white rounded-3xl border border-gray-100 p-6 mb-6 overflow-y-auto shadow-sm">
+                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Stage</h3>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-6">
+                        {speakers.map(speaker => (
+                            <div key={speaker.userId} className="flex flex-col items-center group relative">
+                                <div className="relative">
+                                    <img
+                                        src={speaker.avatar || `https://ui-avatars.com/api/?name=${speaker.username}`}
+                                        alt={speaker.username}
+                                        className={`w-20 h-20 rounded-full object-cover border-4 ${false ? 'border-primary' : 'border-transparent'}`} // TODO: isSpeaking check
+                                    />
+                                    {speaker.role === 'OWNER' && (
+                                        <span className="absolute -bottom-1 -right-1 bg-primary text-secondary text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-white">
+                                            HOST
+                                        </span>
+                                    )}
+                                </div>
+                                <span className="mt-2 font-bold text-sm truncate max-w-full">{speaker.username}</span>
 
-                        {/* Remote Peers */}
-                        {Array.from(remoteStreams.entries()).map(([socketId, stream]) => (
-                            <RemotePeer key={socketId} socketId={socketId} stream={stream} onKick={() => handleKick(socketId)} canKick={true} /> // Assuming everyone can kick for MVP demo, or check hostId
+                                {/* Mod Controls Overlay */}
+                                {amIOwner && speaker.userId !== user?.id && (
+                                    <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1">
+                                        <button onClick={() => handleMoveToAudience(speaker.userId)} className="bg-gray-900 text-white p-1 rounded-full" title="Move to Audience"><MicOff size={12} /></button>
+                                        <button onClick={() => handleKick(speaker.userId)} className="bg-red-500 text-white p-1 rounded-full" title="Kick"><ShieldAlert size={12} /></button>
+                                    </div>
+                                )}
+                            </div>
                         ))}
                     </div>
                 </div>
-                <AudioControls isMuted={isMuted} onToggleMute={handleToggleMute} onLeave={leaveRoom} />
+
+                {/* Audience (Listeners) */}
+                <div className="bg-gray-50 rounded-3xl p-6 overflow-y-auto h-1/3">
+                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Audience</h3>
+                    <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-4">
+                        {listeners.map(listener => (
+                            <div key={listener.userId} className="flex flex-col items-center group relative">
+                                <div className="relative">
+                                    <img
+                                        src={listener.avatar || `https://ui-avatars.com/api/?name=${listener.username}`}
+                                        alt={listener.username}
+                                        className="w-12 h-12 rounded-full object-cover opacity-80"
+                                    />
+                                    {listener.wantsToSpeak && (
+                                        <span className="absolute -top-2 -right-2 bg-white rounded-full p-1 shadow-sm animate-bounce">
+                                            ✋
+                                        </span>
+                                    )}
+                                </div>
+                                <span className="mt-1 text-xs text-gray-500 truncate max-w-full">{listener.username}</span>
+
+                                {/* Mod Controls */}
+                                {amIOwner && (
+                                    <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1">
+                                        <button onClick={() => handlePromoteSpeaker(listener.userId)} className="bg-primary text-secondary p-1 rounded-full" title="Invite to Speak"><Mic size={12} /></button>
+                                        <button onClick={() => handleKick(listener.userId)} className="bg-red-500 text-white p-1 rounded-full" title="Kick"><ShieldAlert size={12} /></button>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Bottom Bar */}
+                <div className="mt-6 flex justify-center gap-4">
+                    <button
+                        onClick={handleToggleMute}
+                        className={`p-4 rounded-full transition-all ${isMuted ? 'bg-red-100 text-red-500' : 'bg-gray-100 hover:bg-gray-200'}`}
+                    >
+                        {isMuted ? <MicOff /> : <Mic />}
+                    </button>
+                    <button
+                        onClick={handleRaiseHand}
+                        className="p-4 rounded-full bg-gray-100 hover:bg-gray-200 transition-all"
+                        title="Raise Hand"
+                    >
+                        <Hand />
+                    </button>
+                </div>
             </div>
 
-            <div className="lg:col-span-1 h-full min-h-[300px]">
-                <ChatBox messages={messages} onSendMessage={sendMessage} />
+            {/* Chat Sidebar (Desktop) */}
+            <div className={`fixed inset-y-0 right-0 w-80 bg-white shadow-2xl transform transition-transform duration-300 lg:relative lg:transform-none lg:shadow-none lg:w-80 lg:block border-l border-gray-100 ${showChat ? 'translate-x-0' : 'translate-x-full'}`}>
+                <div className="h-full flex flex-col">
+                    <div className="p-4 border-b border-gray-100 flex justify-between items-center lg:hidden">
+                        <h3 className="font-bold">Chat</h3>
+                        <button onClick={() => setShowChat(false)}>✕</button>
+                    </div>
+                    <ChatBox messages={messages} onSendMessage={sendMessage} />
+                </div>
             </div>
+
+            {/* Audio Elements for Remote Streams */}
+            {Array.from(remoteStreams.entries()).map(([socketId, stream]) => (
+                <AudioPlayer key={socketId} stream={stream} />
+            ))}
         </div>
     );
 };
 
-const RemotePeer: React.FC<{ socketId: string, stream: MediaStream, onKick: () => void, canKick: boolean }> = ({ socketId, stream, onKick, canKick }) => {
-    const isSpeaking = useAudioAnalysis(stream);
-    return (
-        <div className="relative">
-            <Avatar name={`User ${socketId.substr(0, 4)}`} isSpeaking={isSpeaking} onKick={onKick} canKick={canKick} />
-            <audio
-                autoPlay
-                ref={audio => {
-                    if (audio) audio.srcObject = stream;
-                }}
-            />
-        </div>
-    );
+const AudioPlayer: React.FC<{ stream: MediaStream }> = ({ stream }) => {
+    const audioRef = useRef<HTMLAudioElement>(null);
+    useEffect(() => {
+        if (audioRef.current) {
+            audioRef.current.srcObject = stream;
+        }
+    }, [stream]);
+    return <audio ref={audioRef} autoPlay />;
 };
 
 export default RoomPage;
