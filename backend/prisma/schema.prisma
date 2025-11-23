@@ -10,8 +10,10 @@ datasource db {
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
-  password  String
+  password  String?  // Optional for Google auth users
   username  String
+  googleId  String?  @unique // Google OAuth ID
+  avatar    String?  // Profile picture URL
   createdAt DateTime @default(now())
   rooms     Room[]
   joinedRooms RoomParticipant[]

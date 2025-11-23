@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import GoogleSignInButton from '../components/GoogleSignInButton';
 import axios from 'axios';
 
 const LoginPage: React.FC = () => {
@@ -25,6 +26,20 @@ const LoginPage: React.FC = () => {
         <div className="max-w-md mx-auto mt-20 bg-gray-800 p-8 rounded-lg border border-gray-700 shadow-xl">
             <h2 className="text-2xl font-bold mb-6 text-center">Login</h2>
             {error && <div className="bg-red-500/20 text-red-400 p-3 rounded mb-4 text-sm">{error}</div>}
+
+            {/* Google Sign-In */}
+            <GoogleSignInButton />
+
+            {/* Divider */}
+            <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-600"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                    <span className="px-2 bg-gray-800 text-gray-400">Or continue with email</span>
+                </div>
+            </div>
+
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                     <label className="block text-sm font-medium text-gray-400 mb-1">Email</label>
